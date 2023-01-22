@@ -1,5 +1,6 @@
 # System and Editor files #
 
+.*~
 *~
 .DS_Store
 
