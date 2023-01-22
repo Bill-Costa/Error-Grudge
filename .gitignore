@@ -1,10 +1,20 @@
-# System and Editor files #
+# Error-Grudge/.gitignore  ==========
+# Modified version of github.com
+# version for Perl projects.
+
+# System and Editor files ===========
+# Turd files created by macOS and
+# GNU style backup files (emacs).
 
 .*~
 *~
 .DS_Store
 
-# Perl Module Builders #
+# Perl Module Builders ==============
+# Not all of these match author's
+# use of Perl module distro builders.
+
+# Build.PL  -------------------------
 
 !Build/
 .last_cover_stats
@@ -15,24 +25,26 @@
 *.pm.tdy
 *.bs
 
-# Devel::Cover
+# Devel::Cover ----------------------
+
 cover_db/
 
-# Devel::NYTProf
+# Devel::NYTProf --------------------
+
 nytprof.out
 
-# Dizt::Zilla
-/.build/
+# Module::Build ---------------------
 
-# Module::Build
 _build/
 Build
 Build.bat
 
-# Module::Install
+# Module::Install -------------------
+
 inc/
 
-# ExtUtils::MakeMaker
+# ExtUtils::MakeMaker ---------------
+
 /blib/
 /_eumm/
 /*.gz
