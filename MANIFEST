@@ -2,8 +2,10 @@ Build.PL
 Changes
 lib/Error/Grudge.pm
 Makefile.PL
+LICENSE
 MANIFEST			This list of files
 README
+README.md
 t/00.load.t.off
 t/_demo.perl
 t/_example.exception.x
