@@ -1,0 +1,20 @@
+# See: https://perlmaven.com/getting-started-with-perl-critic
+#
+# Create the symlink `.perlcriticrc` in home directory to point to
+# this config.
+
+severity = 5
+#verbose = 11
+#verbose = %f: [%p] %m at line %l, column %c.\n%d\n
+verbose = %f: [%p] %m at line %l, column %c.\n
+theme = core
+
+[TestingAndDebugging::RequireUseWarnings]
+severity = 5
+
+[ControlStructures::ProhibitUnreachableCode]
+severity = 5
+
+[-Subroutines::ProhibitSubroutinePrototypes]
+
+#==[ EOF: .perlcriticrc ]==

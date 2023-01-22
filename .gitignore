@@ -1,3 +1,10 @@
+# System and Editor files #
+
+*~
+.DS_Store
+
+# Perl Module Builders #
+
 !Build/
 .last_cover_stats
 /META.yml
@@ -33,3 +40,5 @@ inc/
 /MANIFEST.bak
 /pm_to_blib
 /*.zip
+
+#==[ EOF: Error-Grudge/.gitignore ]==
