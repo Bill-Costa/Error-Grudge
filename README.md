@@ -234,7 +234,7 @@ events, of all types, to an open log stream handle.
 
 The mix-in methods added by this module should work with any type of
 blessed object.  However be aware that the services provided by this
-module are **not thread-safe**.  While a generous set of convenience
+module are **NOT THREAD-SAFE**.  While a generous set of convenience
 methods are provided for examining and manipulating your object's
 event status, as few as three of these methods are needed to cover
 most basic use cases.
