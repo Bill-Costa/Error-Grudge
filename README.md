@@ -11,6 +11,8 @@ module's POD for a little light reading.
 
 In your module:
 
+```perl
+
     package Your::Cool::Module;
     use warnings;
     use strict;
@@ -44,8 +46,11 @@ In your module:
 
       # ... otherwise continue work with input file ...
     }
+```
 
 Meanwhile, in a program that does not check your return status...
+
+```perl
 
    $myObj->readInputFile('no-such-file');     # Returns with error flag set.
    $myObj->readInputFile('this-one-exists');  # <-- BANG! Exception here,
@@ -53,13 +58,19 @@ Meanwhile, in a program that does not check your return status...
                                               # where the flag was set that
                                               # is reported.
 
+```
+
 Or in a program that does...
+
+```perl
 
    $myObj->readInputFile('no-such-file');
    warn("skipping file: 'no-such-file'\n")    if ($myObj->hasErrorEvent());
 
    $myObj->readInputFile('this-one-exists');
    warn("skipping file: 'this-one-exists'\n") if ($myObj->hasErrorEvent());
+
+```
 
 ## OVERVIEW ##
 
@@ -76,7 +87,7 @@ collide with your own object method identifiers.
 <P><CENTER>
 <table>
 <tr>
-  <th>Object Method/th>
+  <th>Object Method</th>
   <th>Group</th>
   <th>Description</th>
 </tr>
@@ -151,6 +162,8 @@ collide with your own object method identifiers.
 The module comes out of the box with a predefined status event
 serverity scale:
 
+```perl
+
     Error::Grudge->setSeverityScale
       (
         DEBUG => { level => 0, log => 1 }, # lowest severity
@@ -162,6 +175,8 @@ serverity scale:
         LOGIC => { level => 6, log => 1 }, # programmer logic error
       );
 
+```
+
 But as illustrated, a class method is provided allowing you to do a
 wholesale replacement of this default table with your own preferred
 status names and hierarchy.
@@ -170,19 +185,23 @@ Finally, a range of events can be configured to determine which should
 be flagged and returned as an error, and at what point should an event
 immediately cause an exception to be thrown.
 
+```perl
+
     Error::Grudge->configThreshold
       (
              errorFloor => 'ERROR',  # ERROR and FATAL are flagged
          exceptionFloor => 'LOGIC',  # LOGIC halts immediately
       );
 
+```
+
 Again, these are the initial defaults, which can be changed to suit
 your coding needs using the illustrated class method.
 
 ## DESCRIPTION ##
 
-Damian Conway in his book ["Perl Best Practices"](http://www.oreilly.com/catalog/perlbp/),
-and in this [Perl.com article](https://www.perl.com/pub/2005/07/14/bestpractices.html) he
+Damian Conway, in his book ["Perl Best Practices"](http://www.oreilly.com/catalog/perlbp/),
+and in this [Perl.com article](https://www.perl.com/pub/2005/07/14/bestpractices.html),
 suggests that it is better to "_throw exceptions instead of returning
 special values or setting flags_".  The reasoning is "_developers can
 silently ignore flags and return values, and ignoring them requires
