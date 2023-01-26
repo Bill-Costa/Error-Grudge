@@ -15,7 +15,7 @@ Error::Grudge - a mixin to add error handling methods to your objects
 
 =head1 VERSION
 
-This document describes Error::Grudge version 0.0.0
+This document describes Error::Grudge version 0.0.2
 
 =head1 SYNOPSIS
 
@@ -102,6 +102,11 @@ eventSeverityExceeds()  | :all    | Quantify a status event
 eventSeverityLessThan() | :all    | Quantify a status event
 
 =end text
+
+=cut
+
+
+=pod
 
 =begin html
 
@@ -256,6 +261,12 @@ methods are provided for examining and manipulating your object's
 event status, as few as three of these methods are needed to cover
 most basic use cases.
 
+=head3 But this is not suppose to be how to do this...
+
+- Since private functions are not in EXPORT_OK, they can not be called
+  as object or class methods.  But they can be called as functions if
+  fully qualified with the module name.
+
 =head2 Our Error Handling Philosphy
 
 =over
@@ -287,13 +298,22 @@ web browser, terminal, operator console, or batch log.
 package Error::Grudge;
 
 no autovivification;                    # exists($self->{x}) doesn't add new x
+
+my $NEW_PERL; # legacy
+my $DEBUG;    # legacy
+
+BEGIN
+{
+  $NEW_PERL = ($] >= 5.014) ? sub(){1} : sub(){0};
+}
+
 use v5.20;                              # 1st version with signatures
 use warnings;                           # Save me from my own silly mistakes
 use strict;                             # Keep things squeaky clean.
 use Data::Dumper;			# A useful debugging aid.
 use Carp;                               # Stack traces please.
-use Hash::Util;                         # For restricted keys.
-use Path::Tiny;				# Convenient file handling.
+use Scalar::Util;			# Get client's object ref as unique ID
+use Hash::Util;                         # .... placeholder ...
 use Data::Vindication                   # Mostly for parameter validation.
   qw(isMissing isObject isString);      #
 no warnings 'experimental::signatures'; # No longer experimental v5.36+
@@ -301,71 +321,65 @@ use feature 'signatures';               # For subroutine signatures
 no warnings 'experimental::smartmatch'; # Switch is still experimental.
 use feature 'switch';                   # For attribute validation.
 
-use version; our $VERSION = qv('0.00.00');
+use version; our $VERSION = qv('0.00.02');
 
-#-------------------------------+
-# This feature is not needed if |
-# you are doing an OO module.   |
-#-------------------------------+
-#
-# use Exporter::Easy
-#   (
-#     EXPORT => [ qw(mustHave) ],                      # Foist our garbage
-#         OK => [ qw($thisVar fun1 fun2 fun3 fun4) ],  # Export on request
-#       TAGS => [                                      # Export groups...
-#                 base => [ qw( fun1 ) ],
-#                 more => [ qw( fun2 fun3 fun4 ) ],
-#                  all => [ qw( $thisVar :base :more ) ],
-#               ],
-#   );
-#
-#-------------------------------+
 
-#   We have three types of object related structures for managing
-#   defaults during object creation.
-#
-#   %objectTemplate          $clientDefaults          new( params... )
-#   -----------------------  -----------------------  -----------------------
-#   - This is copied for     - Only created if your   - After the defaults
-#     all new object           client calls class       (on left) are applied
-#     instances.               defaults() method.       to new object, the
-#                                                       new() arg values, if
-#   - Use for any initial    - These defaults are       any, are applied.
-#     default values set       layered over your
-#     by you, the module       initial values.
-#     author.
-#
-#   IMPORTANT: %objectTemplate needs to contain all attributes,
-#   private and public.  We will not work with attributes added on the
-#   fly.  If that is needed, create a new method that does that to
-#   keep %objectTemplate, %callerAttrIs, and @toStringOrd up to date.
+# Temp method defintions...
 
-our $lastReportedError = 'BAD LOGIC';   # Internal out-of-band message passing
-my $clientDefaults = undef();           # Populated by defaults() class method.
-my %objectRegistry = ();		# Keep track of all objects.
-my %objectTemplate =                    # Template/defaults for our object.
+sub        setStatusEvent ( $self ) { }
+sub         hasErrorEvent ( $self ) { }
+sub       eventStackTrace ( $self ) { }
+sub        getStatusEvent ( $self ) { }
+sub       eventSeverityIs ( $self ) { }
+sub    haltIfPendingError ( $self ) { }
+sub      resetStatusEvent ( $self ) { }
+sub     forgiveErrorEvent ( $self ) { }
+sub            holdGrudge ( $self ) { }
+sub      queryStatusEvent ( $self ) { }
+sub     reportStatusEvent ( $self ) { }
+sub  eventSeverityExceeds ( $self ) { }
+sub eventSeverityLessThan ( $self ) { }
+
+use parent 'Exporter';
+
+our @EXPORT_OK =
+          qw(
+              setStatusEvent        hasErrorEvent         eventStackTrace
+              getStatusEvent        eventSeverityIs
+
+              haltIfPendingError    resetStatusEvent      forgiveErrorEvent
+              holdGrudge            queryStatusEvent      reportStatusEvent
+              eventSeverityExceeds  eventSeverityLessThan
+            );
+
+our %EXPORT_TAGS =
   (
-    uoID  => undef(),			# Unique Object ID set only by new()
-    attr1 => 'a1-default',		# These values for unit testing.
-    attr2 => 'a2-default',
-    attr3 => undef(),
-    attr4 => undef(),
-    _prv1 => '_p1-default',
-    _prv2 => undef(),
+    basic =>
+      (
+        [
+          qw(
+              setStatusEvent        hasErrorEvent         eventStackTrace
+              getStatusEvent        eventSeverityIs
+            ),
+        ],
+      ),
+
+    all =>
+      (
+        [
+          qw(
+              setStatusEvent        hasErrorEvent         eventStackTrace
+              getStatusEvent        eventSeverityIs
+
+              haltIfPendingError    resetStatusEvent      forgiveErrorEvent
+              holdGrudge            queryStatusEvent      reportStatusEvent
+              eventSeverityExceeds  eventSeverityLessThan
+            ),
+        ],
+      )
   );
 
-my @toStringOrd  = qw( uoID attr1 attr2 attr3 attr4 _prv1 _prv2 );
-my %callerAttrIs =
-  (
-    uoID  => { settable => 0, required => 1, },   # Set with new() only.
-    attr1 => { settable => 1, required => 1, },
-    attr2 => { settable => 1, required => 0, },
-    attr3 => { settable => 1, required => 0, },
-    attr4 => { settable => 0, required => 0, },
-  );
 
-Hash::Util::lock_keys(%objectTemplate);
-Hash::Util::lock_hash(%objectTemplate);
 
 our %DIAG =  # diagnostic message strings
 (
@@ -385,311 +399,244 @@ our %DIAG =  # diagnostic message strings
   NOT_VOID      => 'expected to be called in VOID context',
   NO_CLASS      => 'missing object class name',
   NO_RULE       => 'no validation rule defined for attribute',
+  OUR_FAULT     => 'internal confusion',
   READONLY      => 'cannot set read-only attribute',
   UNREACHABLE   => "unreachable code wasn't",
 );
 
+# The registry holds all status info for an object, keyed by object's
+# unique ID number, as returned by _getObjID() function.  See the
+# _resetRegistryEntry() private function for the list of attributes
+# maintained.
+
+my %registry = ();
+
+my @GRUDGE_ATTR_ORD =            # Keep in sync with _resetRegistryEntry()
+  (
+       'grudge',   # grudge in effect? always 1 or 0.
+     'severity',   # one of DEBUG, OK, INFO, WARN, ERROR, FATAL, LOGIC, *NONE*
+      'eventID',   # caller defined one 'word' identifier for event
+      'message',   # diagnostic text provided by caller
+     'fromFile',   # caller's source file where status was returned
+     'fromLine',   # caller's line number in that file.
+    'stackDump',   # stack trace returned provided by Carp module.
+  );
+
+# sub dumpDiagnostics
+# {
+#   my $self;
+#   my $str = '';
+#   $self = shift(@_) if (Scalar::Util::blessed($_[0]));
+#   my $BAR = "------------------------------\n";
+
+#   if (defined($self))
+#     {
+#       my $oIndex = Scalar::Util::refaddr($self);
+#       $str .= "${BAR}Status History for this object: $oIndex\n${BAR}";
+
+#       $str .= "\t   status: " . ($status{$oIndex}    // 'NULL') . "\n";
+#       $str .= "\t  message: " . ($message{$oIndex}   // 'NULL') . "\n";
+#       $str .= "\t fromLine: " . ($fromLine{$oIndex}  // 'NULL') . "\n";
+#       $str .= "\tconfirmed: " . ($confirmed{$oIndex} // 'NULL') . "\n\n";
+#     }
+#   else
+#     {
+#       $str .= "${BAR}Status History for all Objects:\n${BAR}";
+
+#       foreach my $oID (sort(keys(%status)))
+#         {
+#           $str .= "Object: $oID\n";
+#           $str .= "\t\t   status: " . ($status{$oID}    // 'NULL') . "\n";
+#           $str .= "\t\t  message: " . ($message{$oID}   // 'NULL') . "\n";
+#           $str .= "\t\t fromLine: " . ($fromLine{$oID}  // 'NULL') . "\n";
+#           $str .= "\t\tconfirmed: " . ($confirmed{$oID} // 'NULL') . "\n\n";
+#         }
+#     }
+
+#   return($str);
+# }
+
 #==============================================================================
-#  Private Class Functions  ===================================================
+#  Private Functions  =========================================================
 #==============================================================================
 
-sub _assertIsAttrName ($attr)
+sub _resetRegistryEntry ( $objID )
 
-#      Abstract: Validate attribute spelling or confess.
+#      Abstract: Set object's registry entry to initial (no event yet) state.
 #
-#    Parameters: $attr -- claimed to be an attribute name
+#    Parameters: $objID -- unique value identifying a specific object
 #
-#       Returns: $attr -- the confirmed attribute name
+#       Returns: $isNewEntry -- true (1) if we had to create a new entry
 #
-#  Precondition: $attr is defined and has a non-blank string value.
+#  Precondition: $objID is a unique ID number for a given object that
+#		 never changes over the course of execution, and can
+#		 always be recalled on demand.  (See _getObjID.)  The
+#		 "no autovivification" pragma must be set to make sure
+#		 that no new hash entry is created just because we
+#		 looked to see if the key already exists.
 #
-# Postcondition: Throws exception if $attr is an unknown attribute or
-#		 is otherwise invalid, otherwise we return the name,
-#		 not that anyone should care.
+# Postcondition: Creates or resets object's registry entry into a
+#		 state that is used to indicate that no event
+#		 information is available.
 #
-#     Dev Notes: The "no autovivification" pragma must be set to make
-#                sure we don't accidentally try to create a new hash
-#                key just by trying to look for it.
+#     Dev Notes: The cavalcade of Error::Grudge attributes:
 #
-#                It seems silly to return a value since our purpose is
-#                to stop te bus if the attribute name is invalid.  But
-#                I guess you could do something like:
-#
-#                  my $attrName = _assertIsAttrName('attr1');  # or die
+#          grudge -- grudge in effect? always 1 or 0.
+#        severity -- one of DEBUG, OK, INFO, WARN, ERROR, FATAL, LOGIC, *NONE*
+#         eventID -- caller defined one 'word' identifier for event
+#         message -- diagnostic text provided by caller
+#        fromFile -- caller's source file where status was returned
+#        fromLine -- caller's line number in that file.
+#       stackDump -- stack trace returned provided by Carp module.
 
 {
-  confess($DIAG{MISSING_ATTR} . "\n_")           if (isMissing($attr));
-  confess($DIAG{NOT_ATTR_NAME} . ": '$attr'\n_") if (not isString($attr));
+  confess($DIAG{OUR_FAULT} . ': (missing param)')      if (isMissing($objID));
+  confess($DIAG{OUR_FAULT} . ": bad ID num: '$objID'") if ($objID !~ m/^\d+$/);
 
-  no autovivification;
-  if (not exists($objectTemplate{$attr}))
-    {
-      my $pkgName = __PACKAGE__;
-      confess($DIAG{BOGUS_ATTR} . ": '$attr'\n_");
-    }
+  my $isNewEntry = (not exists($registry{$objID}));
 
-  return($attr);
+     $registry{$objID}{grudge} = 0;
+   $registry{$objID}{severity} = '*NONE*';
+    $registry{$objID}{eventID} = '(not set)';
+    $registry{$objID}{message} = ['(no msg)'];
+   $registry{$objID}{fromFile} = 'unknown file';
+   $registry{$objID}{fromLine} = 0;
+  $registry{$objID}{stackDump} = '(no stack trace)';
+
+  return($isNewEntry);
 }
 
 #-----------------------------------------------------------------------------
 
-sub _validateAttrValue ($attr, $val)
+sub _extractRegistryEntry ( $objID )
 
-#      Abstract: Validate attribute assignment value.
+#      Abstract: Convert an inside-out object registry entry into a hash.
 #
-#    Parameters: $attr -- attribute receiving value
-#                $val  -- candiate value to assign (may be undefined)
+#    Parameters: $objID -- a (possibly long) integer
 #
-#       Returns: $bool -- 1 if valid, 0 if not.
+#       Returns: $hashRecRef -- reference to a populated hash, or undef().
 #
-#  Precondition: $attr is an expected attribute name
+#  Precondition: $objID is a unique ID number as returned by
+#		 _getObjID().  The "no autovivification" pragma must
+#		 be set to make sure that new hash entries are not
+#		 created just because we looked to see if the key
+#		 already exists.
 #
-# Postcondition: Returns test result.  If the result is 0 (failed),
-#		 check the package global $lastReportedError for the
-#		 reason.  An exception is thrown if the attribute name
-#		 is invalid in any way.  We also thrown an exception
-#		 if called within a void context.
+# Postcondition: Returns a reference to a hash representation of the
+#		 inside-out object, or undefined if the given ID does
+#		 not currently exist within the registry.
 
 {
-  confess($DIAG{FUNC_IN_VOID}) if (not defined(wantarray()));
-  _assertIsAttrName($attr);
+  confess($DIAG{OUR_FAULT} . ': (missing param)')      if (isMissing($objID));
+  confess($DIAG{OUR_FAULT} . ": bad ID num: '$objID'") if ($objID !~ m/^\d+$/);
 
-  $lastReportedError = $DIAG{ERROR_RESET};
+  use Test::More;
+  my $hashRecRef = {};
+  return($hashRecRef) if (not exists($registry{$objID}));
 
-  for ($attr)
+  require Storable;
+  $hashRecRef = Storable::dclone($registry{$objID});
+  return($hashRecRef);
+}
+
+#-----------------------------------------------------------------------------
+
+sub _getObjID ( $objRef )
+
+#      Abstract: Generate unique object ID; create registry entry as needed
+#
+#    Parameters: $objRef -- reference to a blessed thingy
+#
+#       Returns: $gID -- a unique object identification number
+#
+#  Precondition: $objRef is defined and blessed
+#
+# Postcondition: Returns the unique ID.  Adds an entry in the object
+#		 registry and sets it to a standard initial state if
+#		 it is not already recorded.
+#
+#     Dev Notes: The unique identification number is actually the
+#                object's address in memory.  For this reason, this
+#                module is not thread safe.
+#
+#                Also note:
+#
+#                   my $gID = _getObjID($self);   # Do it this way...
+#		    my $gID = $self->_getObjID(); #  because this don't work!
+#
+#                Because our private methods are not exported to the
+#                caller, the caller's objects cannot reference them
+#                using the standard object notation.  So we really
+#                have to be call as a function, not a method.
+
+{
+  confess($DIAG{OUR_FAULT} . ': (missing param)')      if (isMissing($objRef));
+  confess($DIAG{OUR_FAULT} . ': (not object)')      if (not isObject($objRef));
+  confess($DIAG{OUR_FAULT} . ': (void context)') if (not defined(wantarray()));
+
+  my $gID = Scalar::Util::refaddr($objRef);
+  confess($DIAG{OUR_FAULT} . ': object ID extraction failed')
+    if (isMissing($gID));
+
+  confess($DIAG{OUR_FAULT} . ": unexpected object ID format '$gID'")
+    if ($gID !~ m/^\d+$/);
+
+  _resetRegistryEntry($gID) if (not exists($registry{$gID}));
+
+  return($gID);
+}
+
+#------------------------------------------------------------------------------
+
+sub _rptGrudgeState ( $objRef )
+
+#      Abstract: Debugging tool; the object's grudge state in printable form.
+#
+#    Parameters: $objRef -- a blessed thingy
+#
+#       Returns: $report -- the report with carriage control chars
+#
+#  Precondition: $objRef is defined an is an object.
+#
+# Postcondition: Returns the client object's grudge state as printable
+#		 string, with no side effects.  If object is not in
+#		 registry as of yet, that fact is reported instead.
+#
+#     Dev Notes: See global @GRUDGE_ATTR_ORD comments for info about
+#		 the attributes.
+
+{
+  confess($DIAG{OUR_FAULT} . ': (missing param)')      if (isMissing($objRef));
+  confess($DIAG{OUR_FAULT} . ': (not object)')      if (not isObject($objRef));
+  confess($DIAG{OUR_FAULT} . ': (void context)') if (not defined(wantarray()));
+
+  my $gID  = _getObjID($objRef);
+  my $FMT  = "%12s = %s\n";
+  my $PAD  = ' ' x 12;
+  my $buf  = '';
+  my $hRef = $registry{$gID};
+
+  return("(no registry entry for $gID)") if (not defined($hRef));
+
+  foreach my $attr (@GRUDGE_ATTR_ORD)
     {
-      when (/^uoID$/)
+      if (not ref($registry{$gID}{$attr}))
         {
-          return(1) if (not isMissing($val));
-          $lastReportedError = $DIAG{MISSING_VALUE} . ": '$attr'";
-          return(0);
+          $buf .= sprintf($FMT, $attr, $registry{$gID}{$attr});
         }
-
-      when (/^attr1$/)
+      elsif (ref($registry{$gID}{$attr}) eq 'ARRAY')
         {
-          return(1) if (defined($val) and $val ne 'BOGUS-TEST-VALUE');
-          $lastReportedError = $DIAG{GEN_VAL_FAIL} . ": '$attr'";
-          return(0);
-        }
-
-      when (/^attr2$/)
-        {
-          return(1);
-        }
-
-      when (/^attr3$/)
-        {
-          return(1);
-        }
-
-      when (/^attr4$/)
-        {
-          return(1);
-        }
-
-      when (/^_prv/)
-        {
-          return(1);
-        }
-
-      default
-        {
-          confess($DIAG{NO_RULE}, ": '$attr'\n_");
+          my $lines = join("\n$PAD  ", @{$registry{$gID}{$attr}});
+          $buf .= sprintf($FMT, $attr, $lines);
         }
     }
 
-  confess($DIAG{UNREACHABLE});
+  return($buf);
 }
 
 #==============================================================================
 #  Private Object Methods  ====================================================
 #==============================================================================
-
-sub _isAttr ($self, $attr)
-
-#      Abstract: Confirm attribute spelling and existance.
-#
-#    Parameters: $self -- reference to a Error::Grudge object
-#                $attr -- claimed to be an attribute name
-#
-#       Returns: $result -- 0, 1, or undefined.
-#
-#  Precondition: Called as an object method.
-#
-# Postcondition: Return 1 if attribute exists, 0 if unknown attribute,
-#                undefined if this could not possibly be an attribute.
-#                Sets private global $lastReportedError.
-
-{
-  confess($DIAG{NOT_METHOD})   if (not isObject($self));
-  confess($DIAG{FUNC_IN_VOID}) if (not defined(wantarray()));
-
-  if (isMissing($attr))
-    {
-      $lastReportedError = $DIAG{MISSING_ATTR};
-      return(undef);
-    }
-
-  if (not isString($attr))
-    {
-      $lastReportedError = $DIAG{NOT_ATTR_NAME};
-      return(undef);
-    }
-
-  if (not exists($self->{$attr}))
-    {
-      $lastReportedError = "$DIAG{BOGUS_ATTR}: '$attr'";
-      return(0);
-    }
-
-  $lastReportedError = $DIAG{ERROR_RESET};
-  return(1);
-}
-
-#-----------------------------------------------------------------------------
-
-sub _validateAttrNameFromCaller ($self, $attr)
-
-#      Abstract: Validate attribute spelling from this module's clients.
-#
-#    Parameters: $self -- an Error::Grudge object
-#                $attr -- claimed to be an attribute name
-#
-#  Precondition: $self is a defined blessed reference.
-#
-# Postcondition: If $attr is an known attribute, we return true (1).
-#                Otherwise we thrown an exception with an attempt to
-#                show where the caller made their mistake, without
-#                stack tracing our own module's code.
-#
-#     Dev Notes: Not being called as object method is *our* fault.
-{
-  confess($DIAG{NOT_METHOD} . "\n_") if (not isObject($self));
-
-  no autovivification;             # So exists() test will not create new key.
-  my $pkgName = __PACKAGE__;
-  local %Carp::Internal;
-  $Carp::Internal{ (__PACKAGE__) }++;
-
-  confess($DIAG{MISSING_ATTR}  . "\n_ ")   if (isMissing($attr));
-  confess($DIAG{NOT_ATTR_NAME} . "\n_ ")   if (not isString($attr));
-  confess($DIAG{BOGUS_ATTR} . ": '$attr'") if (not exists($self->{$attr}));
-  confess($DIAG{IS_PRIVATE} . ": '$attr'") if ($attr =~ m/^_/);
-  return(1);
-}
-
-#-----------------------------------------------------------------------------
-
-sub _set ($self, $attr, $value)
-
-#      Abstract: Return value of given object's attribute.
-#
-#    Parameters: $self  -- reference to a Error::Grudge object
-#                $attr  -- claimed to be an attribute name
-#                $value -- a value to store or undefined
-#
-#       Returns: $value - the previous value or undefined
-#
-#  Precondition: $self is a defined blessed reference, $attr is
-#                a valid attribute name.
-#
-# Postcondition: If the named attribute exists within the object, the
-#                value is stored and we return any previous value.
-#                Otherwise we throw an exception.
-#
-#         Notes: We see and modify all available attributes, including
-#                private ones.  We also do not do any value
-#                validation, excepting the value provided as gospel.
-#                Contrast this with the public set() method.
-#
-#                Returning the previous value is offered as a
-#                convenience for the caller and as such calling within
-#                a void context is allowed.
-#
-#        BEWARE: Any sort of reference, such as a hadh or a code ref,
-#                can be stored using this mechanism.  But it is up to
-#                caller to determine if any 'old' value returned in
-#                such circumstances is actually useful.
-
-{
-  confess($DIAG{NOT_METHOD} . "\n_") if (not isObject($self));
-
-  _assertIsAttrName($attr);
-  my $oldVal = $self->{$attr};
-  Hash::Util::unlock_hashref($self);
-  $self->{$attr} = $value;
-  Hash::Util::lock_hashref($self);
-  return($oldVal);
-}
-
-#-----------------------------------------------------------------------------
-
-sub _get ($self, $attr)
-
-#      Abstract: Set new value for attribute while returning previous value.
-#
-#    Parameters: $self -- reference to a Error::Grudge object
-#                $attr -- claimed to be an attribute name
-#
-#       Returns: $oldVal - the current value assigned to the attribute
-#
-#  Precondition: $self is a defined blessed reference, $attr is
-#                a valid public attribute name.
-#
-# Postcondition: If the named attribute exists within the object,
-#                returns the value without side effects.  Otherwise we
-#                throw an exception.  Since this is a pure function,
-#                we also throw an exception if called within a void
-#                context.
-#
-#         Notes: We see and return all available attributes, including
-#                private ones, in contrast to the public get() method.
-
-{
-  confess($DIAG{NOT_METHOD}   . "\n_")  if (not isObject($self));
-  confess($DIAG{FUNC_IN_VOID} . "\n_ ") if (not defined(wantarray()));
-
-  _assertIsAttrName($attr);
-  return($self->{$attr});
-}
-
-#-----------------------------------------------------------------------------
-
-sub _init ($self, %attrs)
-
-#      Abstract: Initialize or reset zero or more public attribute values.
-#
-#    Parameters: %attrs -- hash containing zero or more expected attr names
-#
-#       Returns: $self -- with any changes applied.
-#
-#  Precondition: $self is defined and blessed hash ref.  %attrs is a
-#                hash containing zero or more key/value pairs where
-#                each key is an expected public attribute name for
-#                this type of object.  Private attributes are allowed.
-#
-# Postcondition: The supplied attribute values are validated and
-#                applied to the object.  An exception is thrown if any
-#                of the attribute names is misspelled, unexpected, or
-#                private.
-#
-#     DEV NOTES: The idea is to allow caller to set values only for
-#                known attributes.  This cannot be used to add new
-#                attributes.  We also will refuse to set private
-#                attributes; use _set() method for that.
-
-
-{
-  use Test::More;
-  confess($DIAG{NOT_METHOD}) if (not isObject($self));
-
-  foreach my $attr (keys(%attrs))
-    {
-      $self->set($attr, $attrs{$attr});
-    }
-
-  return($self);
-}
 
 #==============================================================================
 #  Class Methods  =============================================================
@@ -742,54 +689,6 @@ that hash as the argument value for the new() object constructor.
 
 sub defaults ($className, %attrs)
 {
-  confess($DIAG{NOT_CLASS}) if (isMissing($className));
-  confess($DIAG{NOT_CLASS}) if (isObject($className));
-  confess($DIAG{NOT_CLASS}) if ($className ne __PACKAGE__);
-
-  #-------------------------------------+
-  # If first time we are being called,  |
-  # then create initial class owned     |
-  # global object.                      |
-  #-------------------------------------+
-
-  if (not defined($clientDefaults))
-    {
-      foreach my $attr (keys(%objectTemplate))
-        {
-          _assertIsAttrName($attr);
-          next if (not $callerAttrIs{$attr}{settable});
-          $clientDefaults->{$attr} = $objectTemplate{$attr};
-        }
-    }
-
-  Hash::Util::lock_ref_keys($clientDefaults);
-
-  #-------------------------------------+
-  # Now apply what the caller wants.    |
-  #-------------------------------------+
-
-  no autovivification;
-  foreach my $attr (keys(%attrs))
-    {
-      croak("ERROR: " . $DIAG{NOT_DEFAULT} . ": '$attr'\n_")
-        if (not exists($clientDefaults->{$attr}));
-
-      my $nxtVal = $attrs{$attr};
-      my $valueAllowed = _validateAttrValue($attr => $nxtVal);
-      if ($valueAllowed)
-        {
-          $clientDefaults->{$attr} = $nxtVal;
-        }
-      else
-        {
-          if (not defined($nxtVal)) { $nxtVal = 'NULL'      }
-          else                      { $nxtVal = "'$nxtVal'" }
-
-          croak("ERROR: " . $DIAG{GEN_VAL_FAIL} . ": $attr => $nxtVal\n_");
-        }
-    }
-
-  return(%{$clientDefaults});
 }
 
 #==============================================================================
@@ -862,75 +761,6 @@ examined but not changes.
 
 sub new ($className, $uoID, %attrs)
 {
-  no autovivification;  # exists($self->{x}) doesn't create a new x
-
-  croak("ERROR: ".$DIAG{NO_CLASS})                if (isMissing($className));
-  croak("ERROR: ".$DIAG{MISSING_VALUE}.': $uoID') if (isMissing($uoID));
-
-  #-----------------------------+
-  # Handle our unique required	|
-  # attribute first.		|
-  #-----------------------------+
-
-  my $absID = path($uoID)->realpath();
-  confess("unable to resolve as a filename\n_ '$uoID'\n_ $!\n_")
-    if (isMissing($absID));
-
-  if (exists($objectRegistry{$absID}))
-    {
-      my $msg = "ERROR: " . $DIAG{NOT_UNIQUE} . ": '$uoID'\n_";
-
-      if ($uoID eq $absID) { croak($msg)                               }
-      else                 { croak($msg . " resolved to: '$absID'\n_") }
-    }
-
-  my $self = {};
-  $self->{uoID} = $absID;
-  $objectRegistry{$absID} = $self;
-
-  #-----------------------------+
-  # Copy attributes from object |
-  # template for our defaults.  |
-  #-----------------------------+
-
-  foreach my $attr (keys(%objectTemplate))
-    {
-      next if ($attr eq 'uoID');
-      $self->{$attr} = $objectTemplate{$attr};
-    };
-
-  bless($self, $className);             # You are now an object.  Hooray!
-  Hash::Util::lock_ref_keys($self);     # Keys are now immutable.
-
-  #-----------------------------+
-  # Npw apply client defaults,  |
-  # if any, and then finally    |
-  # arg values from call.       |
-  #-----------------------------+
-
-  $self->_init(%{$clientDefaults}) if (defined($clientDefaults));
-  $self->_init(%attrs);
-
-  #-----------------------------+
-  # Check for missing required  |
-  # params/attributes.          |
-  #-----------------------------+
-
-  foreach my $attr (keys(%callerAttrIs))
-    {
-      next if ($attr eq 'uoID');			# Already handled.
-      confess("logic error; no such attr: '$attr'\n_")
-        if (not exists($callerAttrIs{$attr}));
-
-      if ($callerAttrIs{$attr}{required})
-        {
-          croak("ERROR: ".$DIAG{MISSING_VALUE}, " for attribute: '$attr'\n_")
-            if (isMissing($self->{$attr}));
-        }
-    }
-
-  Hash::Util::lock_hashref($self);	# From here on out, set() or _set().
-  return($self);
 }
 
 #==============================================================================
@@ -993,28 +823,6 @@ settable object attributes.
 
 sub isAttr ($self, $attrName)
 {
-  croak("ERROR: " . $DIAG{NOT_METHOD}) if (not isObject($self));
-
-  #-------------------------------------+
-  # Private _isAttr() will catch all	|
-  # errors except private attr case.	|
-  #-------------------------------------+
-
-  my $status = $self->_isAttr($attrName);
-  return($status) if (not $status);
-
-  #-------------------------------------+
-  # Hide private from client.		|
-  #-------------------------------------+
-
-  if ($attrName =~ m/^_/)
-    {
-      $lastReportedError = $DIAG{IS_PRIVATE};
-      return(0);
-    }
-
-  $lastReportedError = $DIAG{ERROR_RESET};
-  return(1);
 }
 
 #-----------------------------------------------------------------------------
@@ -1051,12 +859,6 @@ B<Example:>
 
 sub get ($self, $attr)
 {
-  croak("ERROR: " . $DIAG{NOT_METHOD})   if (not isObject($self));
-  croak("ERROR: " . $DIAG{FUNC_IN_VOID}) if (not defined(wantarray()));
-
-  $self->_validateAttrNameFromCaller($attr);
-
-  return($self->{$attr});
 }
 
 #-----------------------------------------------------------------------------
@@ -1115,26 +917,6 @@ be caught and handled.
 
 sub set ($self, $attr, $value )
 {
-  croak("ERROR: " . $DIAG{NOT_METHOD}) if (not isObject($self));
-
-  $self->_validateAttrNameFromCaller($attr);
-
-  croak("ERROR: " . $DIAG{READONLY} . ": '$attr'\n_")
-    if (not $callerAttrIs{$attr}{settable});
-
-  my $valAllowed = _validateAttrValue($attr, $value);
-  if (not $valAllowed)
-    {
-      if (not defined($value)) { $value = 'NULL'     }
-      else                     { $value = "'$value'" }
-
-      croak("ERROR: " . $DIAG{GEN_VAL_FAIL} . ": $attr => $value\n_");
-    }
-
-  Hash::Util::unlock_hashref($self);
-  $self->{$attr} = $value;
-  Hash::Util::lock_hashref($self);
-  return($self);
 }
 
 #-----------------------------------------------------------------------------
@@ -1200,49 +982,37 @@ runtime error).
 
 sub toString ($self)
 {
-  croak("ERROR: " . $DIAG{NOT_METHOD}) if (not isObject($self));
+}
 
-  #-------------------------------------+
-  # Prescan object attrs to determine	|
-  # annotations and format widths.	|
-  #-------------------------------------+
+#------------------------------------------------------------------------------
 
-  my $maxLabelWidth = 0;
-  my %annotation    = ();
-  my %alreadySeen   = ();
-  foreach my $name (keys(%{$self}))
+sub DESTROY
+{
+  my $self = shift(@_);
+  local($., $@, $!, $^E, $?);	# Eliminate all free radicals!
+
+  return if ($NEW_PERL and (${^GLOBAL_PHASE} eq 'DESTRUCT'));
+
+  if (not defined($self) or not Scalar::Util::blessed($self))
     {
-      $maxLabelWidth = length($name) if (length($name) > $maxLabelWidth);
-
-      my $prefix = '';
-      if    (not exists($callerAttrIs{$name})) { $prefix .= '   ' }
-      elsif ($callerAttrIs{$name}{settable})   { $prefix .= 'RW ' }
-      else                                     { $prefix .= 'RO ' }
-
-      if    (not exists($callerAttrIs{$name})) { $prefix .= '     ' }
-      elsif ($callerAttrIs{$name}{required})   { $prefix .= '     ' }
-      else                                     { $prefix .= '(opt)' }
-
-      $annotation{$name} = $prefix;
+      warn("DESTROY not called as object method?\n");
+      return();
     }
 
-  #-------------------------------------+
-  # Build the display text block.	|
-  #-------------------------------------+
+  # my $oIndex = Scalar::Util::refaddr($self);
+  # delete($confirmed{$oIndex});
+  # delete($status{$oIndex});
+  # delete($message{$oIndex});
+  # delete($fromLine{$oIndex});
+  warn("retired sidecar status data") if ($DEBUG);
+}
 
-  my $buffer = '';
-  foreach my $name (@toStringOrd)
-    {
-      #next if ($name =~ m/^_/);
-      my $showVal = Data::Vindication::showValue($self->{$name});
-      $buffer .= sprintf
-                   (
-                     "%3s %${maxLabelWidth}s: %s\n",
-                     $annotation{$name}, $name, $showVal
-                   );
-    }
+#------------------------------------------------------------------------------
 
-  return($buffer);
+sub CLONE
+{
+  my $self = shift(@_);
+  confess("threads not supported by this module");
 }
 
 #==============================================================================

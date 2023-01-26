@@ -9,6 +9,8 @@
 .*~
 *~
 .DS_Store
+*/.DS_Store
+t/Fodder
 
 # Perl Module Builders ==============
 # Not all of these match author's
