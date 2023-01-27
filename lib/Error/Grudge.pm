@@ -26,7 +26,7 @@ In your module:
     use strict;
     use Error::Grudge ":basic";
 
-    # Your objects now have the hasErrorEvent() and setStatusEvent()
+    # Your objects now have the hasErrorReturn() and setReturnStatus()
     # mix-in methods.
 
     sub readInputFile
@@ -36,17 +36,17 @@ In your module:
 
       # First make sure there are no previous, unexamined, errors.
 
-      die($self->eventStackTrace()) if ($self->hasErrorEvent());
+      die($self->getStackTrace()) if ($self->hasErrorReturn());
 
       # Now do stuff.  If we have a problem, report the error...
 
       if (not -e $wantFile)
         {
-          $self->setStatusEvent
+          $self->setReturnStatus
             (
-              severity => 'ERROR',
-               eventID => 'INPUT-FILE-LOOKUP',
-               message => ['file lookup error', $wantFile, $!],
+               severity => 'ERROR',
+               statusID => 'INPUT-FILE-LOOKUP',
+                message => ['file lookup error', $wantFile, $!],
             );
 
          return();
@@ -57,19 +57,19 @@ In your module:
 
 Meanwhile, in a program that does not check your return status...
 
-   $myObj->readInputFile('no-such-file');     # Returns with error flag set.
-   $myObj->readInputFile('this-one-exists');  # <-- BANG! Exception here,
-                                              # but it is the location of
-                                              # where the flag was set that
-                                              # is reported.
+   $myObj->readInputFile('no-such-file');   # Returns w/ a status set.
+   $myObj->readInputFile('existing-file');  # <-- BANG! Exception here,
+                                            # but it is the location
+                                            # where the return status
+                                            # was set that is reported.
 
 Or in a program that does...
 
    $myObj->readInputFile('no-such-file');
-   warn("skipping file: 'no-such-file'\n")    if ($myObj->hasErrorEvent());
+   warn("skipping file: 'no-such-file'\n")  if ($myObj->hasErrorReturn());
 
-   $myObj->readInputFile('this-one-exists');
-   warn("skipping file: 'this-one-exists'\n") if ($myObj->hasErrorEvent());
+   $myObj->readInputFile('existing-file');
+   warn("skipping file: 'existing-file'\n") if ($myObj->hasErrorReturn());
 
 =head1 OVERVIEW
 
@@ -78,6 +78,8 @@ status information to your caller, but at the same time it will
 automatically force an exception if a critical return status is being
 ignored.
 
+=head2 Return Status Object Methods
+
 This module can add the following mix-in methods to your objects for
 comprehensive status flagging, analysis, and reporting.  Note that
 these verbose method names are designed to make it unlikely they will
@@ -85,21 +87,21 @@ collide with your own object method identifiers.
 
 =begin text
 
-Object Method           | Group   | Description
-------------------------+---------+--------------------------------------------
-setStatusEvent()        | :basic  | Die if pending error, else set new status
-hasErrorEvent()         | :basic  | Test/clear last error status event
-eventStackTrace()       | :basic  | Return stack dump for last event
-getStatusEvent()        | :basic  | Return list of all status field values
-eventSeverityIs()       | :basic  | Confirm last status event against a list
-haltIfPendingError()    | :all    | Throw exception now if pending error
-resetStatusEvent()      | :all    | Disarm pending and set new status event
-forgiveErrorEvent()     | :all    | Disarm if pending error
-holdGrudge()            | :all    | Reinstate if last event was an error
-queryStatusEvent()      | :all    | Return status field values as hash
-reportStatusEvent()     | :all    | Event status info suitable for printing
-eventSeverityExceeds()  | :all    | Quantify a status event
-eventSeverityLessThan() | :all    | Quantify a status event
+Object Method            | Group   | Description
+-------------------------+---------+-------------------------------------------
+       setReturnStatus() | :basic  | Die if pending error, else set new status
+        hasErrorReturn() | :basic  | Test/clear last error return status
+         getStackTrace() | :basic  | Stack dump for last return status
+       getReturnStatus() | :basic  | Return list of all status field values
+      statusSeverityIs() | :basic  | Confirm last return status against a list
+    haltIfPendingError() | :all    | Throw exception now if pending error
+     resetReturnStatus() | :all    | Disarm pending and set new return status
+    forgiveErrorReturn() | :all    | Disarm if pending error
+            holdGrudge() | :all    | Reinstate if last return status was error
+     queryReturnStatus() | :all    | Return status field values as hash
+    reportReturnStatus() | :all    | Return status info suitable for printing
+ statusSeverityExceeds() | :all    | Quantify a return status
+statusSeverityLessThan() | :all    | Quantify a return status
 
 =end text
 
@@ -118,29 +120,29 @@ eventSeverityLessThan() | :all    | Quantify a status event
   <th>Description</th>
 </tr>
 <tr>
-  <td><code>setStatusEvent()</dode></td>
+  <td><code>setReturnStatus()</dode></td>
   <td>:basic</td>
   <td>Die if pending error, else set new status</td>
 </tr>
 <tr>
-  <td><code>hasErrorEvent()</dode></td>
+  <td><code>hasErrorReturn()</dode></td>
   <td>:basic</td>
-  <td>Test/clear last error status event</td>
+  <td>Test/clear last error return status</td>
 </tr>
 <tr>
-  <td><code>eventStackTrace()</dode></td>
+  <td><code>getStackTrace()</dode></td>
   <td>:basic</td>
-  <td>Return stack dump for last event</td>
+  <td>Return stack dump for last return status</td>
 </tr>
 <tr>
-  <td><code>getStatusEvent()</dode></td>
+  <td><code>getReturnStatus()</dode></td>
   <td>:basic</td>
   <td>Return list of all status field values</td>
 </tr>
 <tr>
-  <td><code>eventSeverityIs()</dode></td>
+  <td><code>statusSeverityIs()</dode></td>
   <td>:basic</td>
-  <td>Confirm last status event against a list</td>
+  <td>Confirm last return status against a list</td>
 </tr>
 <tr>
   <td><code>haltIfPendingError()</dode></td>
@@ -148,39 +150,39 @@ eventSeverityLessThan() | :all    | Quantify a status event
   <td>Throw exception now if pending error</td>
 </tr>
 <tr>
-  <td><code>resetStatusEvent()</dode></td>
+  <td><code>resetReturnStatus()</dode></td>
   <td>:all  </td>
-  <td>Disarm pending and set new status event</td>
+  <td>Disarm pending and set new return status</td>
 </tr>
 <tr>
-  <td><code>forgiveErrorEvent()</dode></td>
+  <td><code>forgiveErrorReturn()</dode></td>
   <td>:all  </td>
   <td>Disarm if pending error</td>
 </tr>
 <tr>
   <td><code>holdGrudge()</dode></td>
   <td>:all  </td>
-  <td>Reinstate if last event was an error</td>
+  <td>Reinstate if last return status was an error</td>
 </tr>
 <tr>
-  <td><code>queryStatusEvent()</dode></td>
+  <td><code>queryReturnStatus()</dode></td>
   <td>:all  </td>
   <td>Return status field values as hash</td>
 </tr>
 <tr>
-  <td><code>reportStatusEvent()</dode></td>
+  <td><code>reportReturnStatus()</dode></td>
   <td>:all  </td>
-  <td>Event status info suitable for printing</td>
+  <td>Return status info suitable for printing</td>
 </tr>
 <tr>
-  <td><code>eventSeverityExceeds()</dode></td>
+  <td><code>statusSeverityExceeds()</dode></td>
   <td>:all  </td>
-  <td>Quantify a status event</td>
+  <td>Quantify a return status</td>
 </tr>
 <tr>
-  <td><code>eventSeverityLessThan()</dode></td>
+  <td><code>statusSeverityLessThan()</dode></td>
   <td>:all  </td>
-  <td>Quantify a status event</td>
+  <td>Quantify a return status</td>
 </tr>
 </table>
 </CENTER></P>
@@ -189,10 +191,12 @@ eventSeverityLessThan() | :all    | Quantify a status event
 
 E<10>
 
-The module comes out of the box with a predefined status event
+=head2 Framework Configuration Class Methods
+
+The module comes out of the box with a predefined return status
 serverity scale:
 
-    Error::Grudge->setSeverityScale
+    Error::Grudge->configSeverityScale
       (
         DEBUG => { level => 0, log => 1 }, # lowest severity
            OK => { level => 1, log => 0 }, # successful completion
@@ -205,10 +209,10 @@ serverity scale:
 
 But as illustrated, a class method is provided allowing you to do a
 wholesale replacement of this default table with your own preferred
-status names and hierarchy.
+status code names and hierarchy.
 
-Finally, a range of events can be configured to determine which should
-be flagged and returned as an error, and at what point should an event
+Finally, a range of severity codes can be configured to determine which should
+be flagged and returned as an error, and at what point setting the return status should
 immediately cause an exception to be thrown.
 
     Error::Grudge->configThreshold
@@ -220,52 +224,53 @@ immediately cause an exception to be thrown.
 Again, these are the initial defaults, which can be changed to suit
 your coding needs using the illustrated class method.
 
+See the L<Class Methods|"Class Methods"> section of this document for
+more details.
+
 =head1 DESCRIPTION
 
 Damian Conway in his book L<"Perl Best Practices"|http://www.oreilly.com/catalog/perlbp/>,
 and in this L<Perl.com article|https://www.perl.com/pub/2005/07/14/bestpractices.html/>,
-suggests that it is better to "I<throw exceptions instead of returning
-special values or setting flags>".  The reasoning is "I<developers can
+suggests that it is better to "throw exceptions instead of returning
+special values or setting flags".  The reasoning is "developers can
 silently ignore flags and return values, and ignoring them requires
-absolutely no effort on the part of the programmer.>"  In particular
-"I<Ignoring error indicators frequently causes programs to propagate
-errors in entirely the wrong direction.>"  And finally "I<Constantly
+absolutely no effort on the part of the programmer."  In particular
+"Ignoring error indicators frequently causes programs to propagate
+errors in entirely the wrong direction."  And finally "Constantly
 checking return values for failure clutters your code with validation
-statements, often greatly decreasing its readability.>"
+statements, often greatly decreasing its readability."
 
 While these are all valid points, the problem I have is that the
-responsibility for error handling is shifted completely to the caller,
-forcing them to wrap most if not all of your method calls in either an
-`eval` block, or using the "try-catch" block syntatic sugar provided
-by your choice of CPAN module.
+responsibility for error handling is shifted completely to the caller.
+They now must decide which method calls need to be wrapped in either
+an `eval` block, or using some "try-catch" block syntatic sugar
+provided by some CPAN module (take your pick).
 
-This module is an attempt to solve the problem by providing a
+This module is yet another attempt to solve the problem by providing a
 consistent framework to test for error conditions, allowing the caller
 to have fine grained control over probing and handling such states.
 But at the same time, it provides a safety feature where an ignored
-error condition will cause an exception to be thrown.  The original
-locus of that error is reported accurately, even if the bug is surfaced
-much later in execution.  We refer to this property as your object
-being able to "hold a grudge", with each object holding its own
-independent error grudge state.  A feature is also provided that
-allows an object with a lingering unhandled error to be reported when
-the object finally goes out of scope.
+error condition will cause an exception to be thrown.  Plus the
+locus of the original error is reported accurately, even if the bug
+is surfaced much later in execution.  We refer to this property as
+your object being able to "hold a grudge", with each object holding
+its own independent error grudge state.  A feature is also provided
+that allows an object with a lingering unhandled error to be reported
+when that object finally goes out of scope.
 
 Finally, we provide a convenient mechanism to automatically log status
-events, of all types, to an open log stream handle.
+returns, of all types, to an open log stream handle.
 
 The mix-in methods added by this module should work with any type of
 blessed object.  However be aware that the services provided by this
 module are B<not thread-safe>.  While a generous set of convenience
 methods are provided for examining and manipulating your object's
-event status, as few as three of these methods are needed to cover
+return status, as few as three of these methods are needed to cover
 most basic use cases.
 
-=head3 But this is not suppose to be how to do this...
-
-- Since private functions are not in EXPORT_OK, they can not be called
-  as object or class methods.  But they can be called as functions if
-  fully qualified with the module name.
+Be aware that this module goes against some well established Perl
+conventions.  See the L<BUGS AND LIMITATIONS|"BUGS AND LIMITATIONS">
+section below.
 
 =head2 Our Error Handling Philosphy
 
@@ -326,30 +331,30 @@ use version; our $VERSION = qv('0.00.02');
 
 # Temp method defintions...
 
-sub        setStatusEvent ( $self ) { }
-sub         hasErrorEvent ( $self ) { }
-sub       eventStackTrace ( $self ) { }
-sub        getStatusEvent ( $self ) { }
-sub       eventSeverityIs ( $self ) { }
+sub        setReturnStatus ( $self ) { }
+sub         hasErrorReturn ( $self ) { }
+sub       getStackTrace ( $self ) { }
+sub        getReturnStatus ( $self ) { }
+sub       statusSeverityIs ( $self ) { }
 sub    haltIfPendingError ( $self ) { }
-sub      resetStatusEvent ( $self ) { }
-sub     forgiveErrorEvent ( $self ) { }
+sub      resetReturnStatus ( $self ) { }
+sub     forgiveErrorReturn ( $self ) { }
 sub            holdGrudge ( $self ) { }
-sub      queryStatusEvent ( $self ) { }
-sub     reportStatusEvent ( $self ) { }
-sub  eventSeverityExceeds ( $self ) { }
-sub eventSeverityLessThan ( $self ) { }
+sub      queryReturnStatus ( $self ) { }
+sub     reportReturnStatus ( $self ) { }
+sub  statusSeverityExceeds ( $self ) { }
+sub statusSeverityLessThan ( $self ) { }
 
 use parent 'Exporter';
 
 our @EXPORT_OK =
           qw(
-              setStatusEvent        hasErrorEvent         eventStackTrace
-              getStatusEvent        eventSeverityIs
+              setReturnStatus        hasErrorReturn         getStackTrace
+              getReturnStatus        statusSeverityIs
 
-              haltIfPendingError    resetStatusEvent      forgiveErrorEvent
-              holdGrudge            queryStatusEvent      reportStatusEvent
-              eventSeverityExceeds  eventSeverityLessThan
+              haltIfPendingError    resetReturnStatus      forgiveErrorReturn
+              holdGrudge            queryReturnStatus      reportReturnStatus
+              statusSeverityExceeds  statusSeverityLessThan
             );
 
 our %EXPORT_TAGS =
@@ -358,8 +363,8 @@ our %EXPORT_TAGS =
       (
         [
           qw(
-              setStatusEvent        hasErrorEvent         eventStackTrace
-              getStatusEvent        eventSeverityIs
+              setReturnStatus        hasErrorReturn         getStackTrace
+              getReturnStatus        statusSeverityIs
             ),
         ],
       ),
@@ -368,12 +373,12 @@ our %EXPORT_TAGS =
       (
         [
           qw(
-              setStatusEvent        hasErrorEvent         eventStackTrace
-              getStatusEvent        eventSeverityIs
+              setReturnStatus        hasErrorReturn         getStackTrace
+              getReturnStatus        statusSeverityIs
 
-              haltIfPendingError    resetStatusEvent      forgiveErrorEvent
-              holdGrudge            queryStatusEvent      reportStatusEvent
-              eventSeverityExceeds  eventSeverityLessThan
+              haltIfPendingError    resetReturnStatus      forgiveErrorReturn
+              holdGrudge            queryReturnStatus      reportReturnStatus
+              statusSeverityExceeds  statusSeverityLessThan
             ),
         ],
       )
@@ -415,46 +420,12 @@ my @GRUDGE_ATTR_ORD =            # Keep in sync with _resetRegistryEntry()
   (
        'grudge',   # grudge in effect? always 1 or 0.
      'severity',   # one of DEBUG, OK, INFO, WARN, ERROR, FATAL, LOGIC, *NONE*
-      'eventID',   # caller defined one 'word' identifier for event
+      'statusID',   # caller defined one 'word' identifier a particular status
       'message',   # diagnostic text provided by caller
      'fromFile',   # caller's source file where status was returned
      'fromLine',   # caller's line number in that file.
     'stackDump',   # stack trace returned provided by Carp module.
   );
-
-# sub dumpDiagnostics
-# {
-#   my $self;
-#   my $str = '';
-#   $self = shift(@_) if (Scalar::Util::blessed($_[0]));
-#   my $BAR = "------------------------------\n";
-
-#   if (defined($self))
-#     {
-#       my $oIndex = Scalar::Util::refaddr($self);
-#       $str .= "${BAR}Status History for this object: $oIndex\n${BAR}";
-
-#       $str .= "\t   status: " . ($status{$oIndex}    // 'NULL') . "\n";
-#       $str .= "\t  message: " . ($message{$oIndex}   // 'NULL') . "\n";
-#       $str .= "\t fromLine: " . ($fromLine{$oIndex}  // 'NULL') . "\n";
-#       $str .= "\tconfirmed: " . ($confirmed{$oIndex} // 'NULL') . "\n\n";
-#     }
-#   else
-#     {
-#       $str .= "${BAR}Status History for all Objects:\n${BAR}";
-
-#       foreach my $oID (sort(keys(%status)))
-#         {
-#           $str .= "Object: $oID\n";
-#           $str .= "\t\t   status: " . ($status{$oID}    // 'NULL') . "\n";
-#           $str .= "\t\t  message: " . ($message{$oID}   // 'NULL') . "\n";
-#           $str .= "\t\t fromLine: " . ($fromLine{$oID}  // 'NULL') . "\n";
-#           $str .= "\t\tconfirmed: " . ($confirmed{$oID} // 'NULL') . "\n\n";
-#         }
-#     }
-
-#   return($str);
-# }
 
 #==============================================================================
 #  Private Functions  =========================================================
@@ -462,7 +433,7 @@ my @GRUDGE_ATTR_ORD =            # Keep in sync with _resetRegistryEntry()
 
 sub _resetRegistryEntry ( $objID )
 
-#      Abstract: Set object's registry entry to initial (no event yet) state.
+#      Abstract: Set object's registry entry to initial return status state.
 #
 #    Parameters: $objID -- unique value identifying a specific object
 #
@@ -476,14 +447,14 @@ sub _resetRegistryEntry ( $objID )
 #		 looked to see if the key already exists.
 #
 # Postcondition: Creates or resets object's registry entry into a
-#		 state that is used to indicate that no event
+#		 state that is used to indicate that no status
 #		 information is available.
 #
 #     Dev Notes: The cavalcade of Error::Grudge attributes:
 #
 #          grudge -- grudge in effect? always 1 or 0.
 #        severity -- one of DEBUG, OK, INFO, WARN, ERROR, FATAL, LOGIC, *NONE*
-#         eventID -- caller defined one 'word' identifier for event
+#         statusID -- caller defined one 'word' identifier for return status
 #         message -- diagnostic text provided by caller
 #        fromFile -- caller's source file where status was returned
 #        fromLine -- caller's line number in that file.
@@ -497,7 +468,7 @@ sub _resetRegistryEntry ( $objID )
 
      $registry{$objID}{grudge} = 0;
    $registry{$objID}{severity} = '*NONE*';
-    $registry{$objID}{eventID} = '(not set)';
+    $registry{$objID}{statusID} = '(not set)';
     $registry{$objID}{message} = ['(no msg)'];
    $registry{$objID}{fromFile} = 'unknown file';
    $registry{$objID}{fromLine} = 0;
@@ -637,59 +608,6 @@ sub _rptGrudgeState ( $objRef )
 #==============================================================================
 #  Private Object Methods  ====================================================
 #==============================================================================
-
-#==============================================================================
-#  Class Methods  =============================================================
-#==============================================================================
-
-=pod
-
-=head1 Class Methods
-
-=for author to fill in:
-    The following class methods are provided:
-
-=cut
-
-#------------------------------------------------------------------------------
-
-=head2 defaults( [ attr => 'value', ... ] )
-
-Set default attribute values for all subsequent new objects.
-
-=over
-
-S<C<%attrs> -- zero or more attribute name/value pairs>
-
-B<Returns:> Hash containing all settable attributes with their default
-values.
-
-B<Precondition:> Must be called as class method.
-
-B<Postcondition:> New default settings are applied or an exception is
-thrown if there are any errors.
-
-B<Example:>
-
-  my %defs = Error::Grudge->defaults(attr1 => 5, attr2 => undef());
-  my $nxtObj = Error::Grudge->new('myfile', attr3 => 'new-val');
-
-=back
-
-This method may be called without any arguments as a way of examining
-all of the caller-settable attributes and their current default
-values.  Call this method before setting your own defaults to see what
-built-in defaults may already exist.
-
-For convenience when creating new objects, modify the returned hash to
-override defaults as needed and fill-in missing values, and then use
-that hash as the argument value for the new() object constructor.
-
-=cut
-
-sub defaults ($className, %attrs)
-{
-}
 
 #==============================================================================
 #  Object Constructors  =======================================================
@@ -1016,8 +934,183 @@ sub CLONE
 }
 
 #==============================================================================
+#  Class Methods  =============================================================
+#==============================================================================
+
+=pod
+
+=head1 Class Methods
+
+The provided class methods are optional services for replacing or
+tweeking the default return status codes defined by this module's
+framework.  The trigger points for automatic exception activation may
+also be adjusted.  Refer to the L<OVERVIEW|"OVERVIEW"> section above
+for the out-of-the-box defaults.
+
+=cut
+
+#------------------------------------------------------------------------------
+
+=head2 configSeverityScale ( %table )
+
+Defines the return status code keywords in terms of their level of
+severity, and automatic logging status.
+
+=head3 Example #1
+
+Turn logging on for debugging.
+
+=over
+
+  Error::Grudge->configSeverityScale( DEBUG => { log => 1 } );
+
+=back
+
+=head3 Example #2
+
+Replace 'FATAL' keyword with the old IBM term 'ABEND' for 'ABnormal
+END'.
+
+=over
+
+  my %newTable = Error::Grudge->configSeverityScale();
+  delete($newTable{FATAL});
+  $newTable{ABEND} = { level => 5, log => 1 };
+  Error::Grudge->configSeverityScale(%newTable);
+
+=back
+
+=head3 Example #3
+
+Replace entire default table with a terse, custom set of severity levels.
+
+=over
+
+  Error::Grudge->configSeverityScale
+    (
+          OK => { level => 1, log => 0 }, # successful completion
+        WARN => { level => 2, log => 0 }, # warning or advisory
+       FAULT => { level => 3, log => 1 }, # an error
+    );
+
+=back
+
+The B<Error::Grudge> severity scale is used to define the return
+status keywords that will be recognized, and their relative order of
+severity.  The default table, illustrated in
+L<Framework Configation Class Methods|"Framework Configuration Class Methods>
+section above, is what will be defined the first time this module is
+loaded.
+
+=over
+
+=item *
+
+At least one return status keyword definition is required in C<%table>.
+
+=item *
+
+The recommeded format for a return status keyword is to use a single
+uppercase word, but this is not a requirement.
+
+=item *
+
+The C<level> attribute is required and must be a positive integer.
+The C<log> attribute is optional and defaults to false (0).
+
+=item *
+
+This method may be called with an empty parameter list, but not inside
+a VOID context.  It may also be called in VOID context but only with a
+non-empty parmeter list.  (Both situations are shown in exemple #2.)
+
+=item *
+
+When called in a list context, returns the current/new C<%table>.  In
+scalar context, returns a reference to a copy of the current/new
+table.
+
+=back
+
+Any changes you make should be made when your own module is first
+loaded.  Changes made on the fly are probably not a good idea.
+
+=cut
+
+sub configSeverityScale ( %table )
+{
+}
+
+
+#------------------------------------------------------------------------------
+
+=pod
+
+=head2 configThreshold ( %table )
+
+Defines the severity levels for automatic exception reporting.
+
+=head3 Example #1
+
+Modify the default trip-wires to be even more pendantic.
+
+=over
+
+  Error::Grudge->configThrehold
+    (
+          errorFloor => 'WARN',  # WARN|ERROR may not be ignored
+      exceptionFloor => 'FATAL', # FATAL|LOGIC throw exception immediately
+    );
+
+=back
+
+=head3 Example #2
+
+For debugging, temporarily make C<WARN> return status (or worse)
+immediately throw an exception, but only for this section of code.
+
+=over
+
+  my %std = Error::Grudge->configThreshold( exceptionFloor => 'WARN' );
+
+ ... one or more calls made to your methods that set a return status ...
+
+  Error::Grudge->configThreshold(%std);  # restore original thresholds
+
+=back
+
+Any changes you make should be made when your own module is first
+loaded.  Changes made on the fly may make sense for debugging
+purposes, as illustrated in example #2.
+
+=cut
+
+
+sub setSeverityScape ( %table )
+{
+}
+
+#==============================================================================
 #  Module Runtime Initializations  ============================================
 #==============================================================================
+
+Error::Grudge->configSeverityScale
+  (
+    DEBUG => { level => 0, log => 1 }, # lowest severity
+       OK => { level => 1, log => 0 }, # successful completion
+     INFO => { level => 2, log => 0 }, # neutral diagnostic
+     WARN => { level => 3, log => 1 }, # warning or advisory
+    ERROR => { level => 4, log => 1 }, # recoverable error
+    FATAL => { level => 5, log => 1 }, # non-recoverable error
+    LOGIC => { level => 6, log => 1 }, # programmer logic error
+  );
+
+Error::Grudge->configThreshold
+  (
+         errorFloor => 'ERROR',  # ERROR and FATAL are flagged
+     exceptionFloor => 'LOGIC',  # LOGIC halts immediately
+  );
+
 
 1; # All Perl modules must end on a positive note.
 
@@ -1108,6 +1201,11 @@ None reported.
 
 =head1 BUGS AND LIMITATIONS
 
+- Since private functions are not in EXPORT_OK, they can not be called
+  as object or class methods.  But they can be called as functions if
+  fully qualified with the module name.
+
+
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris
 malesuada dictum eleifend. Integer ultricies dolor dui, hendrerit
 fringilla magna mattis et. Vivamus convallis imperdiet commodo.
@@ -1124,11 +1222,11 @@ fringilla magna mattis et. Vivamus convallis imperdiet commodo.
 No bugs have been reported.
 
 Please report any bugs or feature requests to
-L<https://github.com/[% github.name %]/[% github.project %]/issues>.
+L<https://github.com/Bill-Costa/Error-Grudge/issues>.
 
 =head1 REPOSITORY
 
-L<https://github.com/[% github.name %]/[% github.project %]>
+L<https://github.com/Bill-Costa/Error-Grudge>
 
 =head1 AUTHOR
 
