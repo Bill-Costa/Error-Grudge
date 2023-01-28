@@ -71,7 +71,7 @@ diag(' ');
 diag($rpt);
 like($rpt, qr/grudge = 0/,                     "   expected grudge value");
 like($rpt, qr/severity = \*NONE\*/,            "   expected severity value");
-like($rpt, qr/eventID = \(not set\)/,          "   expected eventID value");
+like($rpt, qr/statusID = \(not set\)/,         "   expected statusID value");
 like($rpt, qr/message = \(no msg\)/,           "  expected message value");
 like($rpt, qr/fromFile = unknown file/,        "  expected fromFile value");
 like($rpt, qr/fromLine = 0/,                   "  expected fromLine value");

@@ -1037,7 +1037,7 @@ loaded.  Changes made on the fly are probably not a good idea.
 
 =cut
 
-sub configSeverityScale ( %table )
+sub configSeverityScale ( $class, %table )
 {
 }
 
@@ -1086,7 +1086,7 @@ purposes, as illustrated in example #2.
 =cut
 
 
-sub setSeverityScape ( %table )
+sub configThreshold ( $class, %table )
 {
 }
 
@@ -1104,6 +1104,7 @@ Error::Grudge->configSeverityScale
     FATAL => { level => 5, log => 1 }, # non-recoverable error
     LOGIC => { level => 6, log => 1 }, # programmer logic error
   );
+
 
 Error::Grudge->configThreshold
   (

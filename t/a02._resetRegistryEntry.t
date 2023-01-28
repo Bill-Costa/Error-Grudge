@@ -19,13 +19,13 @@ sub confirmReset ( $ )
   my $id = shift(@_);
   my $hRef = Error::Grudge::_extractRegistryEntry($id);
 
-     is($hRef->{grudge}, 0,                  "   grudge: $hRef->{grudge}");
-   is($hRef->{severity},           '*NONE*', " severity: $hRef->{severity}");
-    is($hRef->{eventID},        '(not set)', "  eventID: $hRef->{eventID}");
-    is(ref($hRef->{message}),       'ARRAY', "  message: $hRef->{message}");
-   is($hRef->{fromFile},     'unknown file', " fromFile: $hRef->{fromFile}");
-   is($hRef->{fromLine},                  0, " fromLine: $hRef->{fromLine}");
-  is($hRef->{stackDump}, '(no stack trace)', "stackDump: $hRef->{stackDump}");
+       is($hRef->{grudge}, 0,                 "   grudge: $hRef->{grudge}");
+     is($hRef->{severity}, '*NONE*',          " severity: $hRef->{severity}");
+     is($hRef->{statusID}, '(not set)',       " statusID: $hRef->{statusID}");
+ is(ref($hRef->{message}), 'ARRAY',           "  message: $hRef->{message}");
+     is($hRef->{fromFile}, 'unknown file',    " fromFile: $hRef->{fromFile}");
+     is($hRef->{fromLine}, 0,                 " fromLine: $hRef->{fromLine}");
+    is($hRef->{stackDump}, '(no stack trace)',"stackDump: $hRef->{stackDump}");
 }
 
 #---------------------------------------+

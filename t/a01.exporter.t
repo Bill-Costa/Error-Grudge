@@ -25,8 +25,8 @@ use Test::Exception;
 }
 
 my $objNone = Import::None->new();
-ok((not $objNone->can("setStatusEvent")), "no  setStatusEvent() method");
-ok((not $objNone->can("holdGrudge")),     "no      holdGrudge() method");
+ok((not $objNone->can("setReturnStatus")), "no  setReturnStatus() method");
+ok((not $objNone->can("holdGrudge")),      "no      holdGrudge() method");
 
 #---------------------------------------+
 # Ask for just the top 5 methods.	|
@@ -41,7 +41,7 @@ ok((not $objNone->can("holdGrudge")),     "no      holdGrudge() method");
 }
 
 my $objBasic = Import::Basic->new();
-ok($objBasic->can("setStatusEvent"),       "has setStatusEvent() method");
+ok($objBasic->can("setReturnStatus"),      "has setReturnStatus() method");
 ok((not $objBasic->can("holdGrudge")),     "no      holdGrudge() method");
 
 #---------------------------------------+
@@ -57,7 +57,7 @@ ok((not $objBasic->can("holdGrudge")),     "no      holdGrudge() method");
 }
 
 my $objAll = Import::All->new();
-ok($objAll->can("setStatusEvent"),       "has setStatusEvent() method");
+ok($objAll->can("setReturnStatus"),      "has setReturnStatus() method");
 ok($objAll->can("holdGrudge"),           "has     holdGrudge() method");
 
 #---------------------------------------+
