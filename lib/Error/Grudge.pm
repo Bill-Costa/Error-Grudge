@@ -6,7 +6,7 @@
 #
 #  NOTES: See https://perldoc.perl.org/perlsub#Signatures for info
 #         on using subroutine signatures.
-
+#
 =pod
 
 =head1 NAME
@@ -331,19 +331,19 @@ use version; our $VERSION = qv('0.00.02');
 
 # Temp method defintions...
 
-sub        setReturnStatus ( $self ) { }
-sub         hasErrorReturn ( $self ) { }
-sub       getStackTrace ( $self ) { }
-sub        getReturnStatus ( $self ) { }
-sub       statusSeverityIs ( $self ) { }
-sub    haltIfPendingError ( $self ) { }
-sub      resetReturnStatus ( $self ) { }
-sub     forgiveErrorReturn ( $self ) { }
-sub            holdGrudge ( $self ) { }
-sub      queryReturnStatus ( $self ) { }
-sub     reportReturnStatus ( $self ) { }
-sub  statusSeverityExceeds ( $self ) { }
-sub statusSeverityLessThan ( $self ) { }
+# sub        setReturnStatus ( $self ) { }
+# sub         hasErrorReturn ( $self ) { }
+# sub       getStackTrace ( $self ) { }
+# sub        getReturnStatus ( $self ) { }
+# sub       statusSeverityIs ( $self ) { }
+# sub    haltIfPendingError ( $self ) { }
+# sub      resetReturnStatus ( $self ) { }
+# sub     forgiveErrorReturn ( $self ) { }
+# sub            holdGrudge ( $self ) { }
+# sub      queryReturnStatus ( $self ) { }
+# sub     reportReturnStatus ( $self ) { }
+# sub  statusSeverityExceeds ( $self ) { }
+# sub statusSeverityLessThan ( $self ) { }
 
 use parent 'Exporter';
 
@@ -610,78 +610,6 @@ sub _rptGrudgeState ( $objRef )
 #==============================================================================
 
 #==============================================================================
-#  Object Constructors  =======================================================
-#==============================================================================
-
-=pod
-
-=head1 Object Constructor
-
-=for author to fill in:
-    Description of the objects constructed.
-
-=cut
-
-#------------------------------------------------------------------------------
-
-=head2 new( $uoID, [ attr => 'value', ... ] )
-
-Constructor for Error::Grudge objects.
-
-=over
-
-S<C<$uoID> -- some unique object identifier, like filename, etc.>
-
-B<Returns:> $obj -- an instantiated Error::Grudge object
-
-B<Precondition:> $uoID must be a defined, non-blank string value.  No
-other objects may have the same exact value for this attribute.  It
-must be unique.
-
-B<Postcondition:> Returns the object, or throws an exception if there
-where any errors in the provided parameters.
-
-B<Example:>
-
-  my $obj1 = Error::Grudge->new('myfile.txt', attr1 => 'foo');
-
-  my %attrs = (
-                attr1 => 'foo',
-                attr2 => 'bar',
-                attr3 => 'bat',
-              );
-
-  my $obj2 = Error::Grudge->new('other-file.txt', %attrs);
-
-=back
-
-After the object has been created, attribute values can be viewed
-using the L<get()> method and changed using the L<set()> method.
-However once set, the object's Unique Object ID (uoID) value can be
-examined but not changes.
-
-=cut
-
-  # DEV NOTES: The _init() service sets the attribute values for us
-  #            while doing attribute name validation.  But the first
-  #            parameter is special -- only we can set it.
-  #
-  #            By locking the object's attribute hash, we prevent the
-  #            caller from mucking with our attributes, but it means
-  #            our own attribute setters need to remember to unlock
-  #            and lock the object.
-  #
-  #            By locking the keys, we prevent our own misspelling of
-  #            an attribute name and any error will point directly to
-  #            our code.  There should be no reason to unlock the keys
-  #            for the rest of the object's life, unless of course
-  #            there is a need to add a new key on the fly.
-
-sub new ($className, $uoID, %attrs)
-{
-}
-
-#==============================================================================
 #  Object Methods  ============================================================
 #==============================================================================
 
@@ -745,165 +673,6 @@ sub isAttr ($self, $attrName)
 
 #-----------------------------------------------------------------------------
 
-=pod
-
-=head2 get( $attrName )
-
-Returns the value of the named attribute.
-
-=over
-
-S<C<$attrName> -- name of an existing non-private attribute>
-
-B<Returns:> The value currently held or undefined.
-
-B<Precondition:> $attrName is required; attribute name must exist.
-
-B<Postcondition:> Returns value or throws exception if name is not
-recognized.
-
-B<Example:>
-
-  # The following assumes attr1 stores a scalar value.
-
-  my $val1 = $myObj->get('attr1');
-  if (defined($val1)) { print("attr1 = '$val1'\n")   }
-  else                { print("attr1 = (not set)\n") }
-
-=back
-
-
-=cut
-
-sub get ($self, $attr)
-{
-}
-
-#-----------------------------------------------------------------------------
-
-=pod
-
-=head2 set( $attrName, $value )
-
-Set named attribute to new value.
-
-=over
-
-S<C<$attrName> -- name of an existing non-private attribute>
-
-S<C<$value> -- value to assign; required but may be undefined>
-
-B<Returns:> $self -- for possible object method chaining
-
-B<Precondition:> Attribute name must be recognized.
-
-B<Postcondition:> The value is set or an exception is thrown if there
-are any errors.
-
-B<Examples:>
-
-  $myObj->set('attr1', $value);       # OK
-  $myObj->set(attr1 => $value);       # OK
-  $myObj->{attr1} = $value;           # Naughty; exception thrown.
-
-  # Old school catch/rethrow on assignment error
-
-  eval
-    {
-      $myObj->set(attr1 => $value);   # $value may be invalid
-      1;                              # made it to here so success
-    }
-  or do
-    {
-      my $error = $@ || 'unknown failure';  # catch diagnostic message
-      if ($error !~ m/'invalid|out of range'/)
-        {
-          confess($error);  # not an error we expected
-        }
-      else
-        {
-          # handle error
-        }
-    };
-
-=back
-
-The last example illustrates how an attribute assignment error could
-be caught and handled.
-
-=cut
-
-sub set ($self, $attr, $value )
-{
-}
-
-#-----------------------------------------------------------------------------
-
-=pod
-
-=head2 toString()
-
-Returns, as a formatted space padded string block, a textual
-representation of the object with annotations.  This can be a useful
-debugging-aid.
-
-=over
-
-B<Returns:> Formatted, multi-line, human-readable string.
-
-B<Precondition:> Called as an object method.
-
-B<Postcondition:> Returns value; pure function; no side effects.
-
-B<Example:>
-
-  my $nxtObj = Error::Grudge->new('myfile');
-  print("Initial object state:\n", $myObj->toString(), "\n");
-
-  # Returns something like:
-
-  Initial object state:
-  RO        uoID: 'myfile'
-  RW (opt) attr1: 'a1-default'
-  RW (opt) attr2: 'a2-default'
-  RW (opt) attr3: NULL
-  RW (opt) attr4: NULL
-           _prv1: '_p1-default'
-           _prv2: NULL
-
-=back
-
-Where:
-
-  RW = read/write -- the caller can set this attribute value
-  RO = readonly -- the caller cannot change this value
-
-If "(opt)" is not shown, the given attribute must be defined and
-have non-blank value.
-
-=for hiddenPrivate
-Note that private attributes are not shown.  If you really must reveal
-all of the object's guts, see the L<Data::Dumper> documentation for
-how to dump a hash reference.
-
-=for visiblePrivate
-Note that private attributes are shown as a debugging aid.  Do not
-code against these values since these variables and their semantics
-may change or disappear.
-
-Revealing the object attribute values is not an invitation for
-bypassing the C<get()> and C<set()> methods.  Be aware that an attempt
-to modify the object directly will be met with open hostility (fatal
-runtime error).
-
-=cut
-
-sub toString ($self)
-{
-}
-
-#------------------------------------------------------------------------------
-
 sub DESTROY
 {
   my $self = shift(@_);
@@ -943,11 +712,80 @@ sub CLONE
 
 The provided class methods are optional services for replacing or
 tweeking the default return status codes defined by this module's
-framework.  The trigger points for automatic exception activation may
+“<framework.  The trigger points for automatic exception activation may
 also be adjusted.  Refer to the L<OVERVIEW|"OVERVIEW"> section above
 for the out-of-the-box defaults.
 
 =cut
+
+#------------------------------------------------------------------------------
+
+=head2 statusLogging ( $statusCode => 1 )
+
+Getter/Setter method for exit status logging.  Use this class method
+to query current settings and/or turn logging on or off.
+
+=head3 Example #1
+
+Turn logging on for C<WARN> exit status.
+
+=over
+
+  Error::Grudge->statusLogging( WARN => 1 );
+
+=back
+
+=head3 Example #2
+
+Remember, change, and restore previous log setting for OK exit status.
+
+=over
+
+  my %logSet = Error::Grudge->statusLogging( OK => 1 );
+
+  # ... call your methods that set return status ...
+
+  Error::Grudge->statusLogging( OK => $logSet{OK} );  # restore previous
+
+=back
+
+The initial log setting for a given status is set using the
+L<configSeverityScale()|"configSeverityScale ( %table )"> method.
+After that, this convenience method can be used to adjust any of these
+settings on the fly.  Note that the values in the returned log profile
+are always those in effect before this method makes any changes.
+
+Keep in mind:
+
+=over
+
+=item *
+
+At least one return status keyword definition is required in C<%table>.
+
+=item *
+
+Perl-style logical values are explicitly converted and stored as 1 or 0.
+
+=item *
+
+When called with an empty parameter list, a non-VOID context is required.
+
+=item *
+
+When called in a list context, returns a hash keyed by status name.
+In scalar context, returns a reference to a I<copy> of those settings.
+
+=back
+
+Note that logging requires open file handle....
+
+=cut
+
+sub configSeverityScale ( $class, %table )
+{
+}
+
 
 #------------------------------------------------------------------------------
 
@@ -982,15 +820,18 @@ END'.
 
 =head3 Example #3
 
-Replace entire default table with a terse, custom set of severity levels.
+Replace entire default table with a terse, custom set of severity
+levels.  The special value C<undef() => undef()> signals that the all
+of the current definitions are to be discarded.
 
 =over
 
   Error::Grudge->configSeverityScale
     (
-          OK => { level => 1, log => 0 }, # successful completion
-        WARN => { level => 2, log => 0 }, # warning or advisory
-       FAULT => { level => 3, log => 1 }, # an error
+      undef() => undef(),
+           OK => { level => 1, log => 0 }, # successful completion
+         WARN => { level => 2, log => 0 }, # warning or advisory
+        FAULT => { level => 3, log => 1 }, # an error
     );
 
 =back
@@ -998,7 +839,7 @@ Replace entire default table with a terse, custom set of severity levels.
 The B<Error::Grudge> severity scale is used to define the return
 status keywords that will be recognized, and their relative order of
 severity.  The default table, illustrated in
-L<Framework Configation Class Methods|"Framework Configuration Class Methods>
+L<Framework Configation Class Methods|"Framework Configuration Class Methods">
 section above, is what will be defined the first time this module is
 loaded.
 
