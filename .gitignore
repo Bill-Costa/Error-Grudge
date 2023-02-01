@@ -4,10 +4,12 @@
 
 # System and Editor files ===========
 # Turd files created by macOS and
-# GNU style backup files (emacs).
+# GNU style backup files, and emacs
+# editing session/recovery files.
 
 .*~
 *~
+\#*\#
 .DS_Store
 */.DS_Store
 t/Fodder
