@@ -7,6 +7,7 @@
 #  NOTES: See https://perldoc.perl.org/perlsub#Signatures for info
 #         on using subroutine signatures.
 #
+
 =pod
 
 =head1 NAME
@@ -15,7 +16,7 @@ Error::Grudge - a mixin to add error handling methods to your objects
 
 =head1 VERSION
 
-This document describes Error::Grudge version 0.0.2
+This document describes B<Error::Grudge> version 0.0.2
 
 =head1 SYNOPSIS
 
@@ -27,7 +28,7 @@ In your module:
     use Error::Grudge ":basic";
 
     # Your objects now have the hasErrorReturn() and setReturnStatus()
-    # mix-in methods.
+    # mixin methods.
 
     sub readInputFile
     {
@@ -44,7 +45,7 @@ In your module:
         {
           $self->setReturnStatus
             (
-               severity => 'ERROR',
+               severity => 'FAIL',
                statusID => 'INPUT-FILE-LOOKUP',
                 message => ['file lookup error', $wantFile, $!],
             );
@@ -57,11 +58,11 @@ In your module:
 
 Meanwhile, in a program that does not check your return status...
 
-   $myObj->readInputFile('no-such-file');   # Returns w/ a status set.
-   $myObj->readInputFile('existing-file');  # <-- BANG! Exception here,
-                                            # but it is the location
-                                            # where the return status
-                                            # was set that is reported.
+   $myObj->readInputFile('no-such-file');   # Returns w/ an error status
+   $myObj->readInputFile('existing-file');  # <-- BANG! Exception thrown,
+                                            # but it is line above where
+                                            # the error return status was
+                                            # set that is reported.
 
 Or in a program that does...
 
@@ -80,7 +81,7 @@ ignored.
 
 =head2 Return Status Object Methods
 
-This module can add the following mix-in methods to your objects for
+This module can add the following mixin methods to your objects for
 comprehensive status flagging, analysis, and reporting.  Note that
 these verbose method names are designed to make it unlikely they will
 collide with your own object method identifiers.
@@ -198,13 +199,13 @@ serverity scale:
 
     Error::Grudge->configSeverityScale
       (
-        DEBUG => { level => 0, log => 1 }, # lowest severity
-           OK => { level => 1, log => 0 }, # successful completion
-         INFO => { level => 2, log => 0 }, # neutral diagnostic
-         WARN => { level => 3, log => 1 }, # warning or advisory
-        ERROR => { level => 4, log => 1 }, # recoverable error
-        FATAL => { level => 5, log => 1 }, # non-recoverable error
-        LOGIC => { level => 6, log => 1 }, # programmer logic error
+        DEBUG => 0,   # lowest severity
+           OK => 1,   # successful completion
+         INFO => 2,   # neutral diagnostic
+         WARN => 3,   # warning or advisory
+         FAIL => 4,   # recoverable error
+         BOMB => 5,   # non-recoverable error
+        LOGIC => 6,   # programmer logic error
       );
 
 But as illustrated, a class method is provided allowing you to do a
@@ -217,7 +218,7 @@ immediately cause an exception to be thrown.
 
     Error::Grudge->configThreshold
       (
-             errorFloor => 'ERROR',  # ERROR and FATAL are flagged
+             errorFloor => 'FAIL',   # FAIL and BOMB are flagged
          exceptionFloor => 'LOGIC',  # LOGIC halts immediately
       );
 
@@ -243,8 +244,8 @@ statements, often greatly decreasing its readability."
 While these are all valid points, the problem I have is that the
 responsibility for error handling is shifted completely to the caller.
 They now must decide which method calls need to be wrapped in either
-an `eval` block, or using some "try-catch" block syntatic sugar
-provided by some CPAN module (take your pick).
+an C<eval> block, or using a "try-catch" block provided as syntatic
+sugar by some CPAN module (take your pick).
 
 This module is yet another attempt to solve the problem by providing a
 consistent framework to test for error conditions, allowing the caller
@@ -258,10 +259,7 @@ its own independent error grudge state.  A feature is also provided
 that allows an object with a lingering unhandled error to be reported
 when that object finally goes out of scope.
 
-Finally, we provide a convenient mechanism to automatically log status
-returns, of all types, to an open log stream handle.
-
-The mix-in methods added by this module should work with any type of
+The mixin methods added by this module should work with any type of
 blessed object.  However be aware that the services provided by this
 module are B<not thread-safe>.  While a generous set of convenience
 methods are provided for examining and manipulating your object's
@@ -278,7 +276,7 @@ section below.
 
 =item *
 
-Any and all logic errors should be thrown immediately.  In practice
+Any and all I<logic> errors should be thrown immediately.  In practice
 this primarily applies to API usage bugs that would have been caught
 at compile time in a more strict language.  The reasoning is that if
 the usage is incorrect, it is very unlikely that any resulting
@@ -419,8 +417,8 @@ my %registry = ();
 my @GRUDGE_ATTR_ORD =            # Keep in sync with _resetRegistryEntry()
   (
        'grudge',   # grudge in effect? always 1 or 0.
-     'severity',   # one of DEBUG, OK, INFO, WARN, ERROR, FATAL, LOGIC, *NONE*
-      'statusID',   # caller defined one 'word' identifier a particular status
+     'severity',   # one of DEBUG, OK, INFO, WARN, FAIL, BOMB, LOGIC, *NONE*
+     'statusID',   # caller defined one 'word' identifier a particular status
       'message',   # diagnostic text provided by caller
      'fromFile',   # caller's source file where status was returned
      'fromLine',   # caller's line number in that file.
@@ -452,13 +450,13 @@ sub _resetRegistryEntry ( $objID )
 #
 #     Dev Notes: The cavalcade of Error::Grudge attributes:
 #
-#          grudge -- grudge in effect? always 1 or 0.
-#        severity -- one of DEBUG, OK, INFO, WARN, ERROR, FATAL, LOGIC, *NONE*
+#           grudge -- grudge in effect? always 1 or 0.
+#         severity -- one of DEBUG, OK, INFO, WARN, FAIL, BOMB, LOGIC, *NONE*
 #         statusID -- caller defined one 'word' identifier for return status
-#         message -- diagnostic text provided by caller
-#        fromFile -- caller's source file where status was returned
-#        fromLine -- caller's line number in that file.
-#       stackDump -- stack trace returned provided by Carp module.
+#          message -- diagnostic text provided by caller
+#         fromFile -- caller's source file where status was returned
+#         fromLine -- caller's line number in that file.
+#        stackDump -- stack trace returned provided by Carp module.
 
 {
   confess($DIAG{OUR_FAULT} . ': (missing param)')      if (isMissing($objID));
@@ -712,7 +710,7 @@ sub CLONE
 
 The provided class methods are optional services for replacing or
 tweeking the default return status codes defined by this module's
-“<framework.  The trigger points for automatic exception activation may
+framework.  The trigger points for automatic exception activation may
 also be adjusted.  Refer to the L<OVERVIEW|"OVERVIEW"> section above
 for the out-of-the-box defaults.
 
@@ -720,134 +718,61 @@ for the out-of-the-box defaults.
 
 #------------------------------------------------------------------------------
 
-=head2 statusLogging ( $statusCode => 1 )
-
-Getter/Setter method for exit status logging.  Use this class method
-to query current settings and/or turn logging on or off.
-
-=head3 Example #1
-
-Turn logging on for C<WARN> exit status.
-
-=over
-
-  Error::Grudge->statusLogging( WARN => 1 );
-
-=back
-
-=head3 Example #2
-
-Remember, change, and restore previous log setting for OK exit status.
-
-=over
-
-  my %logSet = Error::Grudge->statusLogging( OK => 1 );
-
-  # ... call your methods that set return status ...
-
-  Error::Grudge->statusLogging( OK => $logSet{OK} );  # restore previous
-
-=back
-
-The initial log setting for a given status is set using the
-L<configSeverityScale()|"configSeverityScale ( %table )"> method.
-After that, this convenience method can be used to adjust any of these
-settings on the fly.  Note that the values in the returned log profile
-are always those in effect before this method makes any changes.
-
-Keep in mind:
-
-=over
-
-=item *
-
-At least one return status keyword definition is required in C<%table>.
-
-=item *
-
-Perl-style logical values are explicitly converted and stored as 1 or 0.
-
-=item *
-
-When called with an empty parameter list, a non-VOID context is required.
-
-=item *
-
-When called in a list context, returns a hash keyed by status name.
-In scalar context, returns a reference to a I<copy> of those settings.
-
-=back
-
-Note that logging requires open file handle....
-
-=cut
-
-sub configSeverityScale ( $class, %table )
-{
-}
-
-
-#------------------------------------------------------------------------------
-
 =head2 configSeverityScale ( %table )
 
-Defines the return status code keywords in terms of their level of
-severity, and automatic logging status.
+A class getter/setter method that can redefine the return status code
+keywords with their relative level of severity.
 
 =head3 Example #1
 
-Turn logging on for debugging.
-
-=over
-
-  Error::Grudge->configSeverityScale( DEBUG => { log => 1 } );
-
-=back
-
-=head3 Example #2
-
-Replace 'FATAL' keyword with the old IBM term 'ABEND' for 'ABnormal
-END'.
+Replace 'BOMB' keyword with the old IBM term 'ABEND' for 'ABnormal
+END' while retaining its relative severity value.
 
 =over
 
   my %newTable = Error::Grudge->configSeverityScale();
-  delete($newTable{FATAL});
-  $newTable{ABEND} = { level => 5, log => 1 };
+  $newTable{ABEND} => $newTable{BOMB};
+  delete($newTable{BOMB});
   Error::Grudge->configSeverityScale(%newTable);
 
 =back
 
-=head3 Example #3
+=head3 Example #2
 
-Replace entire default table with a terse, custom set of severity
-levels.  The special value C<undef() => undef()> signals that the all
-of the current definitions are to be discarded.
+Replace entire default table with a custom set of severity levels.
 
 =over
 
-  Error::Grudge->configSeverityScale
-    (
-      undef() => undef(),
-           OK => { level => 1, log => 0 }, # successful completion
-         WARN => { level => 2, log => 0 }, # warning or advisory
-        FAULT => { level => 3, log => 1 }, # an error
-    );
+  BEGIN
+  {
+    Error::Grudge->configSeverityScale
+      (
+           FAULT => 500,  # a server error
+           ERROR => 400,  # a client error
+            WARN => 300,  # warning or resource error
+         SUCCESS => 200,  # successful completion
+              OK => 200,  # synonym for SUCCESS
+            INFO => 100,  # informational response
+      );
+  }
 
 =back
 
-The B<Error::Grudge> severity scale is used to define the return
+The B<Error::Grudge> severity scale can be used to redefine the return
 status keywords that will be recognized, and their relative order of
 severity.  The default table, illustrated in
 L<Framework Configation Class Methods|"Framework Configuration Class Methods">
 section above, is what will be defined the first time this module is
 loaded.
 
+Notes:
+
 =over
 
 =item *
 
-At least one return status keyword definition is required in C<%table>.
+At least one return status keyword definition and integer value is
+required in C<%table>.
 
 =item *
 
@@ -856,25 +781,38 @@ uppercase word, but this is not a requirement.
 
 =item *
 
-The C<level> attribute is required and must be a positive integer.
-The C<log> attribute is optional and defaults to false (0).
+The C<level> value is required and is expected to be a positive
+integer.
 
 =item *
 
-This method may be called with an empty parameter list, but not inside
-a VOID context.  It may also be called in VOID context but only with a
-non-empty parmeter list.  (Both situations are shown in exemple #2.)
+This method may be called with an empty parameter list, but not within
+a VOID context.  It may also be called within a VOID context, but only
+with a non-empty parmeter list.  (Both situations are shown in exemple
+#1.)
 
 =item *
 
-When called in a list context, returns the current/new C<%table>.  In
-scalar context, returns a reference to a copy of the current/new
-table.
+When called within a list context, returns the current settings as a
+hash table B<before> applying any changes.  Within a scalar context,
+returns a hash reference which is a B<copy> of those settings.
 
 =back
 
-Any changes you make should be made when your own module is first
-loaded.  Changes made on the fly are probably not a good idea.
+Example #2 illustrates that the order of the table defintions is not
+important, nor do the values need to be contigous, nor start with any
+particular value.  It is only the relativity of the values that is
+important.
+
+Example #2 also illustrates that a severity level may be assigned to
+more than one keyword.  While the severity may be identical, your code
+could assign different symantics to each keyword, or treat them
+equivalently.
+
+It should be obvious that any changes are best made when your own
+module is first loaded, perhaps within a C<BEGIN> block.  Modifications
+made later, during the program's execution, may confuse your caller, or
+yourself!
 
 =cut
 
@@ -889,7 +827,8 @@ sub configSeverityScale ( $class, %table )
 
 =head2 configThreshold ( %table )
 
-Defines the severity levels for automatic exception reporting.
+A class getter/setter method that can redefine the severity levels for
+automatic exception reporting.
 
 =head3 Example #1
 
@@ -899,8 +838,8 @@ Modify the default trip-wires to be even more pendantic.
 
   Error::Grudge->configThrehold
     (
-          errorFloor => 'WARN',  # WARN|ERROR may not be ignored
-      exceptionFloor => 'FATAL', # FATAL|LOGIC throw exception immediately
+          errorFloor => 'WARN',  # WARN|FAIL may not be ignored
+      exceptionFloor => 'BOMB',  # BOMB|LOGIC throw exception immediately
     );
 
 =back
@@ -920,8 +859,32 @@ immediately throw an exception, but only for this section of code.
 
 =back
 
-Any changes you make should be made when your own module is first
-loaded.  Changes made on the fly may make sense for debugging
+The B<Error::Grudge> severity threholds define the point where your
+object should start holding a grudge, and at what point an exception
+should be thrown immediately.
+
+=over
+
+=item *
+
+The same return status keyword cannot be used for both thresholds.
+
+=item *
+
+This method may be called with an empty parameter list, but not within
+a VOID context.  It may also be called within a VOID context but only
+with a non-empty parmeter list.
+
+=item *
+
+When called within a list context, returns the current settings as a
+hash table B<before> applying any changes.  Within a scalar context,
+returns a hash reference which is a B<copy> of those settings.
+
+=back
+
+Normally any changes should be made when your own module is first
+loaded.  However changes made on the fly may make sense for debugging
 purposes, as illustrated in example #2.
 
 =cut
@@ -937,19 +900,19 @@ sub configThreshold ( $class, %table )
 
 Error::Grudge->configSeverityScale
   (
-    DEBUG => { level => 0, log => 1 }, # lowest severity
-       OK => { level => 1, log => 0 }, # successful completion
-     INFO => { level => 2, log => 0 }, # neutral diagnostic
-     WARN => { level => 3, log => 1 }, # warning or advisory
-    ERROR => { level => 4, log => 1 }, # recoverable error
-    FATAL => { level => 5, log => 1 }, # non-recoverable error
-    LOGIC => { level => 6, log => 1 }, # programmer logic error
+    DEBUG => 0,  # lowest severity
+       OK => 1,  # successful completion
+     INFO => 2,  # neutral diagnostic
+     WARN => 3,  # warning or advisory
+     FAIL => 4,  # recoverable error
+     BOMB => 5,  # non-recoverable error
+    LOGIC => 6,  # programmer logic error
   );
 
 
 Error::Grudge->configThreshold
   (
-         errorFloor => 'ERROR',  # ERROR and FATAL are flagged
+         errorFloor => 'FAIL',   # FAIL and BOMB are flagged
      exceptionFloor => 'LOGIC',  # LOGIC halts immediately
   );
 
@@ -1008,7 +971,8 @@ fringilla magna mattis et. Vivamus convallis imperdiet commodo.
     that can be set. These descriptions must also include details of any
     configuration language used.
 
-Error::Grudge requires no configuration files or environment variables.
+B<Error::Grudge> requires no configuration files nor environment
+variables.
 
 =head1 DEPENDENCIES
 
@@ -1023,8 +987,6 @@ C<Data::Vindication> -- Data validation by another name.
     including any restrictions on versions, and an indication whether
     the module is part of the standard Perl distribution, part of the
     module's distribution, or must be installed separately. ]
-
-None.
 
 =head1 INCOMPATIBILITIES
 
@@ -1043,14 +1005,21 @@ None reported.
 
 =head1 BUGS AND LIMITATIONS
 
-- Since private functions are not in EXPORT_OK, they can not be called
-  as object or class methods.  But they can be called as functions if
-  fully qualified with the module name.
+=over
 
+=item *
+
+Since private functions are not in EXPORT_OK, they cannot be called as
+object or class methods.  But they can be called as functions if fully
+qualified with the module name.
+
+=item *
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris
 malesuada dictum eleifend. Integer ultricies dolor dui, hendrerit
 fringilla magna mattis et. Vivamus convallis imperdiet commodo.
+
+=back
 
 =for author to fill in:
     A list of known problems with the module, together with some
@@ -1083,7 +1052,13 @@ modify it under the same terms as Perl itself. See L<perlartistic>.
 
 =head1 SEE ALSO
 
-[list other modules that provide similar services]
+=over
+
+=item *
+
+See "roles" in L<Moose>.
+
+=back
 
 =head1 DISCLAIMER OF WARRANTY
 
